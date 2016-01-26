@@ -1,0 +1,24 @@
+Author: Adam YH Lee <adam.yh.lee@gmail.com>
+Date:   Tue Jan 26 15:52:47 2016 -0800
+
+    Experimental OV7692 Driver for OMAP3-ISP
+    
+    This is an experimental OmniVision OV7692 driver for OMAP3-ISP.
+    
+    Assummed configuration:
+    	* 8 bit parallel mode (CCDC)
+    	* SBGGR8 format
+    
+    To use this driver:
+    	1. Build this kernel module as an external module. Take a look at
+    	   `install_native.sh` script.
+    	2. Edit your device-tree structure. Look at ov7692 node in
+    	   `omap3-overo-common-peripheral.dtsi` file for an example.
+    	3. Initialize the driver, and ISP pipeline using the `init.sh` script.
+    	4. Run these commands to capture raw image(s):
+    		$ yavta -p -c10 -n1 -s640x480 -fSBGGR8 -Fimage-#.raw /dev/video2
+    	5. Use `ufraw` tool on your host system to view the file:
+    		$ ufraw iamge-000000.raw
+    
+    Currently this driver is not stable - multiple image captures often lockup the
+    system.
