@@ -103,36 +103,36 @@
 	};
 
 	/* optional Caspa (MT9V032) camera */
-	mt9v032_1: camera@5c {
-		compatible = "aptina,mt9v032";
-		reg = <0x5c>;
-		clocks = <&omap3_isp 0>;
-		clock-names = "cam_xclka";
-		clock-frequency = <26600000>;
-		port {
-			mt9v032_1_1: endpoint {
-				remote-endpoint = <&ccdc_ep>;
-				clk-pol = <0>;
-				link-frequencies = /bits/ 64 <13000000 26600000 27000000>;
-			};
-		};
-	};
-
-	/* optional tiny caspa (OV7692) camera */
-	// ov7692: camera@3c {
-	// 	compatible = "omnivision,ov7692";
-	// 	reg = <0x3c>;
+	// mt9v032_1: camera@5c {
+	// 	compatible = "aptina,mt9v032";
+	// 	reg = <0x5c>;
 	// 	clocks = <&omap3_isp 0>;
 	// 	clock-names = "cam_xclka";
 	// 	clock-frequency = <26600000>;
 	// 	port {
-	// 		ov7692_1: endpoint {
+	// 		mt9v032_1_1: endpoint {
 	// 			remote-endpoint = <&ccdc_ep>;
 	// 			clk-pol = <0>;
 	// 			link-frequencies = /bits/ 64 <13000000 26600000 27000000>;
 	// 		};
 	// 	};
 	// };
+
+	/* optional tiny caspa (OV7692) camera */
+	ov7692: camera@3c {
+		compatible = "omnivision,ov7692";
+		reg = <0x3c>;
+		clocks = <&omap3_isp 0>;
+		clock-names = "cam_xclka";
+		clock-frequency = <26600000>;
+		port {
+			ov7692_1: endpoint {
+				remote-endpoint = <&ccdc_ep>;
+				clk-pol = <0>;
+				link-frequencies = /bits/ 64 <13000000 26600000 27000000>;
+			};
+		};
+	};
 };
 
 &omap3_isp {

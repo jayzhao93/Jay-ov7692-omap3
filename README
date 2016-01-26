@@ -1,0 +1,61 @@
+Experimental OV7692 Driver for OMAP3-ISP
+
+This is an experimental OmniVision OV7692 driver for OMAP3-ISP.
+
+Currently this driver is not stable - multiple image captures often lockup the
+system. For now, it can grab raw data straight from CCDC. Features such as auto
+white balance, and exposure compensation are yet to be developed.
+
+
+Assummed configuration:
+	* 8 bit parallel mode (CCDC)
+	* SBGGR8 format
+
+Requirement:
+	* Gumstix Overo Storm
+	* 80MM 0.3mm pitch 27 pin top-to-bottom flex cable (Overo side facing down)
+	* Yocto Project 1.8 (Kernel v3.18.18) 
+
+Hardware Setup:
+	* Connect your Overo with Tiny Caspa using a flex cable. The sensor on
+	  Tiny Caspa and Overo COM should be facing up. On Overo's side,
+	  contacts of the flex cable should be facing down.
+
+Quick start:
+	1. Flash your uSD with WO52641 (use 4GiB or larger SD card).
+	2. Run init.sh or init-previewer.sh
+
+To build and use this driver:
+	1. Build this kernel module as an external module. Take a look at
+	   `install_native.sh` script.
+	2. Edit your device-tree structure. Look at ov7692 node in
+	   `omap3-overo-common-peripheral.dtsi` file for an example.
+	3. Initialize the driver, and ISP pipeline using the `init.sh` script.
+	4. Run these commands to capture raw image(s):
+		$ yavta -p -c10 -n1 -s640x480 -fSBGGR8 -Fimage-#.raw /dev/video2
+	5. Use `ufraw` tool on your host system to view the file:
+		$ ufraw image-000000.raw
+
+Quirks:
+	1. First frame of a multi-frame capture tends to have no real image data.
+	2. Disabling dynamic debugger seems to introduce more `device busy` error.
+		* Be sure to load `omap3-isp` with `dyndbg=+pt` option.
+	   Or, play with the `usleep` functions in the driver. Long sleeps tend to
+	   help with stabilization.
+	3. Latest Gumstix Yocto images have incomplete module symbols. This is a
+	   known issue. Some V4L2 related entries are missing from the stock image.
+	   Hence it is recommended that you build your own kernel:
+		* Gumstix Linux v3.18.18 - https://git.io/vgixv
+		* defconfig - https://git.io/vgiAS
+	4. 19.2Mhz master clock seems to be the most stable. Otherwise `device busy`
+	   or stuck at `done getting..`.
+	5. When the image is grabbed through the previewer, and viewed through `display`
+	   tool, the image appears as if it has been skewed.
+
+Tips:
+	1. To roll out your own image compatible with this driver, build on Gumstix
+	   Yocto Project, but add `kernel-devsrc` and enable `tools-sdk`.
+	2. Don't forget to run `make modules_prepare` if your Kernel source is fresh.
+	3. Sample image is located at `misc/image-00000.raw`. Use `ufraw` to view.
+	4. Sample terminal output for a successful image capture can be found here:
+		* https://git.io/vgPeU
