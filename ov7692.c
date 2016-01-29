@@ -8,6 +8,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_graph.h>
+#include <linux/mutex.h>
 
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
@@ -211,6 +212,7 @@ static int write_regs_i2c(struct i2c_client *client, const u8 *regs)
 
 	u8 buf[2];
 
+	v4l_info(client, "Writing into i2c..!\n");
 	for (i = 0; regs[i] != 0xEE; i += 2) {
 		buf[0] = regs[i];
 		buf[1] = regs[i+1];
@@ -219,6 +221,7 @@ static int write_regs_i2c(struct i2c_client *client, const u8 *regs)
 		if (ret < 0)
 			v4l_err(client, "i2c send failed!\n");
 	}
+	v4l_info(client, "Done writing into i2c..!\n");
 
 	return 0;	
 }
@@ -256,7 +259,6 @@ static int read_reg(struct i2c_client *client, u8 reg, u8 *data)
 static void __ov7692_set_power(struct ov7692 *ov7692, int on)
 {
 	ov7692->streaming = 0;
-	ov7692->power = on;
 }
 
 static int ov7692_s_power(struct v4l2_subdev *sd, int on)
@@ -264,23 +266,33 @@ static int ov7692_s_power(struct v4l2_subdev *sd, int on)
 	struct ov7692 *ov7692 = to_ov7692(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
+	v4l2_info(client, "Turning the power on/off: power: %d on: %d\n", ov7692->power, on);
 
-	__ov7692_set_power(ov7692, on);
-	if (on) {
-		v4l2_info(client, "Resetting...\n");
-		write_regs_i2c(client, reset_registers);
-		//usleep_range(25000, 26000);
-		usleep_range(100, 200);
-		v4l2_info(client, "Initializing... \n");
-		write_regs_i2c(client, initial_registers);
-		ov7692->ctrls.update = 1;
+	if (ov7692->power == !on) {
+
+		__ov7692_set_power(ov7692, on);
+
+		if (on) {
+			v4l2_info(client, "Resetting...\n");
+			write_regs_i2c(client, reset_registers);
+			usleep_range(100, 200);
+			v4l2_info(client, "Initializing... \n");
+			write_regs_i2c(client, initial_registers);
+			ov7692->ctrls.update = 1;
+		}
+		else {
+			v4l2_info(client, "Enabling sleep mode... \n");
+			write_regs_i2c(client, stop_registers);
+		}
 	}
-	else {
-		v4l2_info(client, "Enabling sleep mode... \n");
-		write_regs_i2c(client, stop_registers);
-	}
+	//else {
+	//	v4l2_info(client, "Enabling sleep mode... \n");
+	//	write_regs_i2c(client, stop_registers);
+	//}
 		
-	//usleep_range(150000, 170000);
+	ov7692->power += on ? 1: -1;
+
+	v4l2_info(client, "Exiting s_power - power on/off: power: %d on: %d\n", ov7692->power, on);
 	usleep_range(200, 300);
 
 	return 0;
@@ -323,23 +335,30 @@ static int ov7692_s_stream(struct v4l2_subdev *sd, int on)
 	struct ov7692_ctrls *ctrls = &ov7692->ctrls;
 	int ret = 0;
 
+	v4l_info(client, "ov7692->streaming: %d on: %d\n", ov7692->streaming, on);
 	if(ov7692->streaming == !on){
 		if(on) {
 			v4l2_info(client, "starting stream\n");
 			if (write_regs_i2c(client, start_registers) < 0) {
 				v4l_err(client, "err starting a stream\n");
 			}
+			else
+				v4l_info(client, "start_registers written \n");
 		}
 		if(ctrls->update) {
+			v4l_info(client, "update controls\n");
 			ret = v4l2_ctrl_handler_setup(&ctrls->handler);
 
-			if(!ret)
+			if(!ret){
 				ctrls->update = 0;
+				v4l_info(client, "control update succedded\n");
+			}
 		}
 		
 	}	
 
 	ov7692->streaming += on ? 1 : -1;
+	v4l_info(client, "streaming is on/off %d\n", ov7692->streaming);
 	WARN_ON(ov7692->streaming < 0);
 
 	return ret;
@@ -365,6 +384,8 @@ static int ov7692_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	v4l2_info(client, "Getting format... \n");
 
 	fmt->format = ov7692->format;
+
+	v4l2_info(client, "Done getting format... \n");
 
 	return 0;
 }
@@ -400,11 +421,9 @@ static const struct v4l2_subdev_pad_ops ov7692_pad_ops = {
 static int ov7692_g_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *fi)
 {
-	//struct ov7692 *ov7692 = to_ov7692(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	v4l2_info(client, "Setting g_frame rate\n");
-	// fi->interval = ov7692->fiv->interval;
 
 	return 0;
 }
@@ -412,7 +431,6 @@ static int ov7692_g_frame_interval(struct v4l2_subdev *sd,
 static int ov7692_s_frame_interval(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_frame_interval *fi)
 {
-	//struct ov7692 *ov7692 = to_ov7692(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	v4l2_info(client, "Setting s_frame rate\n");
@@ -441,18 +459,15 @@ static int ov7692_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	ov7692_get_default_format(mf);
 
 	v4l2_info(client, "Opening the device ... \n");
-	ov7692_s_power(sd, 1);
 
 	return 0;
 }
 
 static int ov7692_close(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	//struct v4l2_mbus_framefmt *mf = v4l2_subdev_get_try_format(fh, 0);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	v4l2_info(client, "Closing the device ... \n");
-	ov7692_s_power(sd, 0);
 
 	return 0;
 }
@@ -461,11 +476,14 @@ static void ov7692_configure_pixel_rate(struct i2c_client *client, struct ov7692
 {
 	int ret;
 
+	ov7692->hratio = 1;
 	ret = v4l2_ctrl_s_ctrl_int64(ov7692->pixel_rate,
-				     ov7692->sysclk /ov7692->hratio);
+				     ov7692->sysclk / ov7692->hratio);
 
 	if (ret < 0)
 		dev_warn(&client->dev, "failed to set pixel rate (%d)\n", ret);
+	else
+		dev_info(&client->dev, "Set pixel rate\n");
 }
 
 static int ov7692_registered(struct v4l2_subdev *sd)
@@ -624,8 +642,8 @@ static int ov7692_probe(struct i2c_client *client,
 	if (IS_ERR(clk))
 		return -EPROBE_DEFER;
 
-	//ret = clk_set_rate(clk, 26600000);
-	ret = clk_set_rate(clk, 28800000);
+	v4l_info(client, "clock being set at %d\n", pdata->link_def_freq);
+	ret = clk_set_rate(clk, pdata->link_def_freq);
 	if (ret < 0)
 	{
 		v4l_err(client, "clk_set_rate failed\n");
