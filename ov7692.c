@@ -279,10 +279,10 @@ static int ov7692_s_power(struct v4l2_subdev *sd, int on)
 			write_regs_i2c(client, initial_registers);
 			ov7692->ctrls.update = 1;
 		}
-		else {
-			v4l2_info(client, "Enabling sleep mode... \n");
+		//else {
+		//	v4l2_info(client, "Enabling sleep mode... \n");
 		//	write_regs_i2c(client, stop_registers);
-		}
+		//}
 	}
 		
 	ov7692->power += on ? 1: -1;
@@ -527,6 +527,7 @@ static int ov7692_s_ctrl(struct v4l2_ctrl *ctrl)
 		
 		freq = ov7692->pdata->link_freqs[ov7692->link_freq->val];
 		*ov7692->pixel_rate->p_new.p_s64 = freq;
+		//*ov7692->pixel_rate->p_new.p_s64 = 24000000;
 		ov7692->sysclk = freq;
 		v4l2_info(client, "Link frequency being set at %u\n", freq);
 
@@ -540,20 +541,15 @@ static const struct v4l2_ctrl_ops ov7692_ctrl_ops = {
 	.s_ctrl = ov7692_s_ctrl,
 };
 
-static const char * const test_pattern_menu[] = {
-	"Disabled",
-	"Color bars",
-	NULL
-};
-
 static int ov7692_initialize_controls(struct ov7692 *ov7692)
 {
 	const struct v4l2_ctrl_ops *ops = &ov7692_ctrl_ops;
 	struct ov7692_ctrls *ctrls = &ov7692->ctrls;
 	struct v4l2_ctrl_handler *hdl = &ctrls->handler;
-	int ret;
 	struct v4l2_subdev *sd = &ov7692->sd;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret;
+
 	v4l2_info(client, "Initializing controls... \n");
 
 	ret = v4l2_ctrl_handler_init(hdl, 16);
@@ -562,22 +558,15 @@ static int ov7692_initialize_controls(struct ov7692 *ov7692)
 		return ret;
 	}
 
-	// ctrls->hflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_HFLIP, 0, 1, 1, 0);
-	// ctrls->vflip = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_VFLIP, 0, 1, 1, 0);
 	ov7692->pixel_rate = v4l2_ctrl_new_std(&ov7692->ctrls.handler, &ov7692_ctrl_ops,
 			  V4L2_CID_PIXEL_RATE, 1, INT_MAX, 1, 1);
 	
-	// v4l2_ctrl_new_std_menu_items(hdl, ops, V4L2_CID_TEST_PATTERN,
-        //                         ARRAY_SIZE(test_pattern_menu) - 1, 0, 0,
-        //                         test_pattern_menu);
         if (hdl->error) {
 		v4l2_info(client, "v4l2_ctrl_new_std_menu_itmes returns error %d\n", ret);
                 ret = hdl->error;
                 v4l2_ctrl_handler_free(hdl);
                 return ret;
         }
-
-	// v4l2_ctrl_cluster(2, &ctrls->hflip);
 
         ov7692->sd.ctrl_handler = hdl;
 	v4l2_info(client, "ov7692_initialize_controls exiting\n");
@@ -592,11 +581,16 @@ static const struct v4l2_subdev_internal_ops ov7692_sd_internal_ops = {
 };
 
 static const s64 ov7692_link_freqs[] = {
-	13000000,
-	26600000,
-	27000000,
+	19200000,
 	0,
 };
+
+//static const s64 ov7692_link_freqs[] = {
+//	15000000,
+//	26600000,
+//	28800000,
+//	0,
+//};
 
 static struct ov7692_platform_data *
 ov7692_get_pdata(struct i2c_client *client)
@@ -617,7 +611,8 @@ ov7692_get_pdata(struct i2c_client *client)
 
 	pdata->clk_pol = 0;
 	pdata->link_freqs = ov7692_link_freqs;
-	pdata->link_def_freq = 26600000;
+	//pdata->link_def_freq = 27000000;
+	pdata->link_def_freq = 19200000;
 
 done:
 	of_node_put(np);
@@ -694,25 +689,6 @@ static int ov7692_probe(struct i2c_client *client,
 	model_id = (model_id_msb << 8) | ((model_id_lsb & 0x00FF)) ;
 
 	v4l_info(client, "Model ID: 0x%x, 0x%x, 0x%x\n", model_id, model_id_msb, model_id_lsb);
-
-	// ??
-	// v4l2_info(client, "Resetting...\n");
-	// write_regs_i2c(client, reset_registers);
-	// usleep_range(100, 200);
-	// v4l2_info(client, "Initializing... \n");
-	// write_regs_i2c(client, initial_registers);
-	// usleep_range(100, 200);
-	// v4l2_info(client, "Full registers appliedj.. \n");
-	// write_regs_i2c(client, start_registers);
-
-
-	// if (write_regs_i2c(client, full_registers) < 0) {
-	// 	v4l_err(client, "err initializing OV7692\n");
-	// 	return -ENODEV;
-	// }
-
-	/* check initial values */
-	//read_regs(client, full_registers);
 
 	ov7692->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
