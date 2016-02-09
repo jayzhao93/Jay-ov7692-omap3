@@ -157,7 +157,6 @@ static const u8 initial_registers[] = {
 };
 
 static const u8 start_registers[] = {
-//	0x12, 0x01, // Bayer RAW
 //	0x0c, 0x01,
 	0x0e, 0x00, // Normal mode (no sleep)
 	//0x61, 0x00,
@@ -282,18 +281,13 @@ static int ov7692_s_power(struct v4l2_subdev *sd, int on)
 		}
 		else {
 			v4l2_info(client, "Enabling sleep mode... \n");
-			write_regs_i2c(client, stop_registers);
+		//	write_regs_i2c(client, stop_registers);
 		}
 	}
-	//else {
-	//	v4l2_info(client, "Enabling sleep mode... \n");
-	//	write_regs_i2c(client, stop_registers);
-	//}
 		
 	ov7692->power += on ? 1: -1;
 
 	v4l2_info(client, "Exiting s_power - power on/off: power: %d on: %d\n", ov7692->power, on);
-	usleep_range(200, 300);
 
 	return 0;
 };
@@ -336,8 +330,16 @@ static int ov7692_s_stream(struct v4l2_subdev *sd, int on)
 	int ret = 0;
 
 	v4l_info(client, "ov7692->streaming: %d on: %d\n", ov7692->streaming, on);
+
 	if(ov7692->streaming == !on){
 		if(on) {
+			usleep_range(100, 200);
+			write_regs_i2c(client, reset_registers);
+			usleep_range(100, 200);
+			v4l2_info(client, "Initializing... \n");
+			write_regs_i2c(client, initial_registers);
+			usleep_range(100, 200);
+
 			v4l2_info(client, "starting stream\n");
 			if (write_regs_i2c(client, start_registers) < 0) {
 				v4l_err(client, "err starting a stream\n");
@@ -356,6 +358,8 @@ static int ov7692_s_stream(struct v4l2_subdev *sd, int on)
 		}
 		
 	}	
+
+	usleep_range(100, 200);
 
 	ov7692->streaming += on ? 1 : -1;
 	v4l_info(client, "streaming is on/off %d\n", ov7692->streaming);
@@ -524,6 +528,7 @@ static int ov7692_s_ctrl(struct v4l2_ctrl *ctrl)
 		freq = ov7692->pdata->link_freqs[ov7692->link_freq->val];
 		*ov7692->pixel_rate->p_new.p_s64 = freq;
 		ov7692->sysclk = freq;
+		v4l2_info(client, "Link frequency being set at %u\n", freq);
 
 		break;
 	}
@@ -642,7 +647,7 @@ static int ov7692_probe(struct i2c_client *client,
 	if (IS_ERR(clk))
 		return -EPROBE_DEFER;
 
-	v4l_info(client, "clock being set at %d\n", pdata->link_def_freq);
+	v4l_info(client, "clock being set at %lld\n", pdata->link_def_freq);
 	ret = clk_set_rate(clk, pdata->link_def_freq);
 	if (ret < 0)
 	{
@@ -689,6 +694,17 @@ static int ov7692_probe(struct i2c_client *client,
 	model_id = (model_id_msb << 8) | ((model_id_lsb & 0x00FF)) ;
 
 	v4l_info(client, "Model ID: 0x%x, 0x%x, 0x%x\n", model_id, model_id_msb, model_id_lsb);
+
+	// ??
+	// v4l2_info(client, "Resetting...\n");
+	// write_regs_i2c(client, reset_registers);
+	// usleep_range(100, 200);
+	// v4l2_info(client, "Initializing... \n");
+	// write_regs_i2c(client, initial_registers);
+	// usleep_range(100, 200);
+	// v4l2_info(client, "Full registers appliedj.. \n");
+	// write_regs_i2c(client, start_registers);
+
 
 	// if (write_regs_i2c(client, full_registers) < 0) {
 	// 	v4l_err(client, "err initializing OV7692\n");
