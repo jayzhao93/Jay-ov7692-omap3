@@ -16,7 +16,7 @@
 #include <media/v4l2-event.h>
 
 #include "ov7692.h"
-MODULE_DESCRIPTION("OmniVision ov 7692 sensor driver");
+MODULE_DESCRIPTION("OmniVision OV7692 sensor experimental driver");
 MODULE_LICENSE("GPL v2");
 
 #define REG_OV7692_MODEL_ID_MSB	0x0A
@@ -157,9 +157,7 @@ static const u8 initial_registers[] = {
 };
 
 static const u8 start_registers[] = {
-//	0x0c, 0x01,
 	0x0e, 0x00, // Normal mode (no sleep)
-	//0x61, 0x00,
 	0xEE, 0x00,
 };
 
@@ -279,10 +277,6 @@ static int ov7692_s_power(struct v4l2_subdev *sd, int on)
 			write_regs_i2c(client, initial_registers);
 			ov7692->ctrls.update = 1;
 		}
-		//else {
-		//	v4l2_info(client, "Enabling sleep mode... \n");
-		//	write_regs_i2c(client, stop_registers);
-		//}
 	}
 		
 	ov7692->power += on ? 1: -1;
@@ -299,7 +293,6 @@ static int ov7692_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->index > 0)
 		return -EINVAL;
 
-	//code->code = V4L2_MBUS_FMT_YUYV8_2X8;	
 	code->code = V4L2_MBUS_FMT_SBGGR8_1X8;
 	return 0;
 }
@@ -312,7 +305,6 @@ static int ov7692_enum_frame_sizes(struct v4l2_subdev *sd,
 
 	v4l2_info(client, "Setting frame sizes... \n");
 
-	//fse->code = V4L2_MBUS_FMT_YUYV8_2X8;
 	fse->code = V4L2_MBUS_FMT_SBGGR8_1X8;
 	fse->min_width = 640;
 	fse->min_height = 480;
@@ -527,7 +519,6 @@ static int ov7692_s_ctrl(struct v4l2_ctrl *ctrl)
 		
 		freq = ov7692->pdata->link_freqs[ov7692->link_freq->val];
 		*ov7692->pixel_rate->p_new.p_s64 = freq;
-		//*ov7692->pixel_rate->p_new.p_s64 = 24000000;
 		ov7692->sysclk = freq;
 		v4l2_info(client, "Link frequency being set at %u\n", freq);
 
@@ -585,13 +576,6 @@ static const s64 ov7692_link_freqs[] = {
 	0,
 };
 
-//static const s64 ov7692_link_freqs[] = {
-//	15000000,
-//	26600000,
-//	28800000,
-//	0,
-//};
-
 static struct ov7692_platform_data *
 ov7692_get_pdata(struct i2c_client *client)
 {
@@ -611,7 +595,6 @@ ov7692_get_pdata(struct i2c_client *client)
 
 	pdata->clk_pol = 0;
 	pdata->link_freqs = ov7692_link_freqs;
-	//pdata->link_def_freq = 27000000;
 	pdata->link_def_freq = 19200000;
 
 done:
